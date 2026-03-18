@@ -1,0 +1,330 @@
+<!DOCTYPE html>
+<html class="dark" lang="en">
+
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+<title>SelfDecode</title>
+
+<script src="https://cdn.tailwindcss.com"></script>
+
+<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@200;400;600;700;800&display=swap" rel="stylesheet">
+
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined" rel="stylesheet">
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+<script>
+tailwind.config = {
+darkMode: "class",
+theme: {
+extend: {
+colors: {
+primary: "#5a19e6",
+backgroundDark: "#161121"
+},
+fontFamily: {
+display: ["Manrope","sans-serif"]
+}
+}
+}
+}
+</script>
+
+<style>
+body{
+font-family:'Manrope',sans-serif;
+}
+</style>
+
+</head>
+
+<body class="bg-backgroundDark text-white min-h-screen flex items-center justify-center">
+
+<div class="w-full max-w-2xl px-6 text-center">
+
+<!-- START SCREEN -->
+
+<div id="startScreen">
+
+<span class="material-symbols-outlined text-primary text-5xl mb-6">
+psychology
+</span>
+
+<h1 class="text-[42px] md:text-[56px] font-extrabold mb-4">
+SelfDecode
+</h1>
+
+<p class="text-slate-400 text-lg mb-10">
+An honest psychological analysis of your personality traits.
+</p>
+
+<div class="max-w-[420px] mx-auto space-y-4">
+
+<input id="username"
+class="w-full rounded-xl h-14 px-6 bg-primary/10 text-white focus:ring-2 focus:ring-primary"
+placeholder="Your Name">
+
+<button id="startBtn"
+class="w-full rounded-xl h-14 bg-primary font-bold hover:bg-primary/90">
+Start the Test →
+</button>
+
+</div>
+
+</div>
+
+
+<!-- QUIZ SCREEN -->
+
+<div id="quizScreen" class="hidden">
+
+<div id="progressText" class="text-sm text-slate-400 mb-2">
+Question 1 / 20
+</div>
+
+<div class="w-full h-2 bg-slate-700 rounded-full mb-8">
+
+<div id="progressBar"
+class="h-full bg-primary transition-all duration-500"
+style="width:5%">
+</div>
+
+</div>
+
+<h2 id="question"
+class="text-2xl font-bold mb-8">
+Question text
+</h2>
+
+<div class="space-y-4 max-w-[420px] mx-auto">
+
+<button id="optionA"
+class="w-full h-14 rounded-xl bg-primary/10 hover:bg-primary/20">
+Option A
+</button>
+
+<button id="optionB"
+class="w-full h-14 rounded-xl bg-primary/10 hover:bg-primary/20">
+Option B
+</button>
+
+</div>
+
+</div>
+
+
+<!-- RESULT SCREEN -->
+
+<div id="resultScreen" class="hidden flex flex-col min-h-screen items-center justify-between py-16">
+
+  <!-- HEADER SPACE -->
+  <div class="text-center mt-6">
+    <h2 class="text-3xl font-bold mb-4">
+      Your Personality Analysis
+    </h2>
+  </div>
+
+  <!-- MAIN CONTENT -->
+  <div class="flex flex-col items-center">
+
+    <div class="max-w-[420px] w-full mb-10">
+      <canvas id="traitChart"></canvas>
+    </div>
+
+    <div class="max-w-[520px] px-4 text-center">
+      <p id="analysis" class="text-slate-300 text-lg leading-relaxed">
+        Analyzing...
+      </p>
+    </div>
+
+  </div>
+
+  <!-- FOOTER -->
+  <div class="text-center opacity-30 text-sm tracking-widest uppercase">
+    Insight • Clarity • Growth
+  </div>
+
+</div>
+
+<script src="questions.js"></script>
+
+<script>
+
+let username=""
+let currentQuestion=0
+
+let traits={
+extraversion:0,
+curiosity:0,
+discipline:0,
+empathy:0,
+dominance:0,
+risk:0,
+loyalty:0,
+stability:0
+}
+
+function shuffle(array){
+for(let i=array.length-1;i>0;i--){
+let j=Math.floor(Math.random()*(i+1))
+let temp=array[i]
+array[i]=array[j]
+array[j]=temp
+}
+return array
+}
+
+let questions = shuffle([...questionPool]).slice(0,20)
+
+document.getElementById("startBtn").onclick=function(){
+
+username=document.getElementById("username").value
+
+if(username===""){
+alert("Please enter your name")
+return
+}
+
+document.getElementById("startScreen").classList.add("hidden")
+document.getElementById("quizScreen").classList.remove("hidden")
+
+loadQuestion()
+
+}
+
+function loadQuestion(){
+
+let q=questions[currentQuestion]
+
+document.getElementById("question").innerText=q.text
+document.getElementById("optionA").innerText=q.A
+document.getElementById("optionB").innerText=q.B
+
+let percent=((currentQuestion+1)/questions.length)*100
+
+document.getElementById("progressText").innerText=
+`Question ${currentQuestion+1} / ${questions.length}`
+
+document.getElementById("progressBar").style.width=percent+"%"
+
+}
+
+function answer(choice){
+
+let q=questions[currentQuestion]
+
+let effect = choice==="A"?q.Aeffect:q.Beffect
+
+for(let trait in effect){
+traits[trait]+=effect[trait]
+}
+
+currentQuestion++
+
+if(currentQuestion<questions.length){
+loadQuestion()
+}else{
+finishTest()
+}
+
+}
+
+document.getElementById("optionA").onclick=()=>answer("A")
+document.getElementById("optionB").onclick=()=>answer("B")
+
+function finishTest(){
+
+document.getElementById("quizScreen").classList.add("hidden")
+document.getElementById("resultScreen").classList.remove("hidden")
+
+fetch("/analyze",{
+
+method:"POST",
+headers:{
+"Content-Type":"application/json"
+},
+
+body:JSON.stringify({
+name:username,
+traits:traits
+})
+
+})
+.then(res=>res.json())
+.then(data=>{
+
+document.getElementById("analysis").innerHTML =
+((data.analysis || data.error || "Analysis failed.").replace(/\n/g,"<br><br>"))
+
+drawChart()
+
+})
+.catch(()=>{
+document.getElementById("analysis").innerText="Unable to contact the server."
+})
+
+}
+
+function drawChart(){
+
+new Chart(document.getElementById("traitChart"),{
+
+type:"radar",
+
+data:{
+labels:[
+"Extraversion",
+"Curiosity",
+"Discipline",
+"Empathy",
+"Dominance",
+"Risk",
+"Loyalty",
+"Stability"
+],
+
+datasets:[{
+
+label:"Traits",
+
+data:[
+traits.extraversion,
+traits.curiosity,
+traits.discipline,
+traits.empathy,
+traits.dominance,
+traits.risk,
+traits.loyalty,
+traits.stability
+],
+
+backgroundColor:"rgba(90,25,230,0.2)",
+borderColor:"#5a19e6",
+borderWidth:2
+
+}]
+},
+
+options:{
+plugins:{legend:{display:false}},
+scales:{
+r:{
+suggestedMin:0,
+suggestedMax:10,
+grid:{color:"#333"},
+pointLabels:{color:"#aaa"},
+ticks:{display:false}
+}
+}
+}
+
+})
+
+}
+
+</script>
+
+</body>
+</html>
